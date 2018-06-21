@@ -1,119 +1,150 @@
-var camera, scene, renderer;
-var effect, controls;
-var element, container;
-
 var clock = new THREE.Clock();
-
+var container;
+var camera, scene, raycaster, renderer;
+var room;
+var isMouseDown = false;
+var INTERSECTED;
+var crosshair;
 init();
 animate();
-
 function init() {
-  renderer = new THREE.WebGLRenderer();
-  element = renderer.domElement;
-  container = document.getElementById('example');
-  container.appendChild(element);
-
-  effect = new THREE.StereoEffect(renderer);
-
-  scene = new THREE.Scene();
-
-  camera = new THREE.PerspectiveCamera(90, 1, 0.001, 700);
-  camera.position.set(0, 10, 0);
-  scene.add(camera);
-
-  controls = new THREE.OrbitControls(camera, element);
-  controls.rotateUp(Math.PI / 4);
-  controls.target.set(
-    camera.position.x + 0.1,
-    camera.position.y,
-    camera.position.z
-  );
-  controls.noZoom = true;
-  controls.noPan = true;
-
-  function setOrientationControls(e) {
-    if (!e.alpha) {
-      return;
-    }
-
-    controls = new THREE.DeviceOrientationControls(camera, true);
-    controls.connect();
-    controls.update();
-
-    element.addEventListener('click', fullscreen, false);
-
-    window.removeEventListener('deviceorientation', setOrientationControls, true);
-  }
-  window.addEventListener('deviceorientation', setOrientationControls, true);
-
-
-  var light = new THREE.HemisphereLight(0x777777, 0x000000, 0.6);
-  scene.add(light);
-
-  var texture = THREE.ImageUtils.loadTexture(
-    'textures/patterns/checker.png'
-  );
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat = new THREE.Vector2(50, 50);
-  texture.anisotropy = renderer.getMaxAnisotropy();
-
-  var material = new THREE.MeshPhongMaterial({
-    color: 0xffffff,
-    specular: 0xffffff,
-    shininess: 20,
-    shading: THREE.FlatShading,
-    map: texture
-  });
-
-  var geometry = new THREE.PlaneGeometry(1000, 1000);
-
-  var mesh = new THREE.Mesh(geometry, material);
-  mesh.rotation.x = -Math.PI / 2;
-  scene.add(mesh);
-
-  window.addEventListener('resize', resize, false);
-  setTimeout(resize, 1);
+	container = document.createElement( 'div' );
+	document.body.appendChild( container );
+	var info = document.createElement( 'div' );
+	scene = new THREE.Scene();
+	scene.background = new THREE.Color( 0x505050 );
+	camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.1, 10 );
+	scene.add( camera );
+	crosshair = new THREE.Mesh(
+		new THREE.RingBufferGeometry( 0.02, 0.04, 32 ),
+		new THREE.MeshBasicMaterial( {
+			color: 0xffffff,
+			opacity: 0.5,
+			transparent: true
+		} )
+	);
+	crosshair.position.z = - 2;
+	camera.add( crosshair );
+	room = new THREE.Mesh(
+		new THREE.BoxBufferGeometry( 6, 6, 6, 8, 8, 8 ),
+		new THREE.MeshBasicMaterial( { color: 0x404040, wireframe: true } )
+	);
+	room.position.y = 3;
+	scene.add( room );
+	scene.add( new THREE.HemisphereLight( 0x606060, 0x404040 ) );
+	var light = new THREE.DirectionalLight( 0xffffff );
+	light.position.set( 1, 1, 1 ).normalize();
+	scene.add( light );
+	var geometry = new THREE.BoxBufferGeometry( 0.15, 0.15, 0.15 );
+	for ( var i = 0; i < 200; i ++ ) {
+		var object = new THREE.Mesh( geometry, new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } ) );
+		object.position.x = Math.random() * 4 - 2;
+		object.position.y = Math.random() * 4 - 2;
+		object.position.z = Math.random() * 4 - 2;
+		object.rotation.x = Math.random() * 2 * Math.PI;
+		object.rotation.y = Math.random() * 2 * Math.PI;
+		object.rotation.z = Math.random() * 2 * Math.PI;
+		object.scale.x = Math.random() + 0.5;
+		object.scale.y = Math.random() + 0.5;
+		object.scale.z = Math.random() + 0.5;
+		object.userData.velocity = new THREE.Vector3();
+		object.userData.velocity.x = Math.random() * 0.01 - 0.005;
+		object.userData.velocity.y = Math.random() * 0.01 - 0.005;
+		object.userData.velocity.z = Math.random() * 0.01 - 0.005;
+		room.add( object );
+	}
+	raycaster = new THREE.Raycaster();
+	renderer = new THREE.WebGLRenderer( { antialias: true } );
+	renderer.setPixelRatio( window.devicePixelRatio );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.vr.enabled = true;
+	container.appendChild( renderer.domElement );
+	renderer.domElement.addEventListener( 'mousedown', onMouseDown, false );
+	renderer.domElement.addEventListener( 'mouseup', onMouseUp, false );
+	renderer.domElement.addEventListener( 'touchstart', onMouseDown, false );
+	renderer.domElement.addEventListener( 'touchend', onMouseUp, false );
+	window.addEventListener( 'resize', onWindowResize, false );
+	//
+	window.addEventListener( 'vrdisplaypointerrestricted', onPointerRestricted, false );
+	window.addEventListener( 'vrdisplaypointerunrestricted', onPointerUnrestricted, false );
+	document.body.appendChild( WEBVR.createButton( renderer ) );
+}
+function onMouseDown() {
+	isMouseDown = true;
+}
+function onMouseUp() {
+	isMouseDown = false;
+}
+function onPointerRestricted() {
+	var pointerLockElement = renderer.domElement;
+	if ( pointerLockElement && typeof(pointerLockElement.requestPointerLock) === 'function' ) {
+		pointerLockElement.requestPointerLock();
+	}
+}
+function onPointerUnrestricted() {
+	var currentPointerLockElement = document.pointerLockElement;
+	var expectedPointerLockElement = renderer.domElement;
+	if ( currentPointerLockElement && currentPointerLockElement === expectedPointerLockElement && typeof(document.exitPointerLock) === 'function' ) {
+		document.exitPointerLock();
+	}
 }
 
-function resize() {
-  var width = container.offsetWidth;
-  var height = container.offsetHeight;
-
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
-
-  renderer.setSize(width, height);
-  effect.setSize(width, height);
+function onWindowResize() {
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize( window.innerWidth, window.innerHeight );
 }
-
-function update(dt) {
-  resize();
-
-  camera.updateProjectionMatrix();
-
-  controls.update(dt);
+//
+function animate() {
+	renderer.setAnimationLoop( render );
 }
-
-function render(dt) {
-  effect.render(scene, camera);
-}
-
-function animate(t) {
-  requestAnimationFrame(animate);
-
-  update(clock.getDelta());
-  render(clock.getDelta());
-}
-
-function fullscreen() {
-  if (container.requestFullscreen) {
-    container.requestFullscreen();
-  } else if (container.msRequestFullscreen) {
-    container.msRequestFullscreen();
-  } else if (container.mozRequestFullScreen) {
-    container.mozRequestFullScreen();
-  } else if (container.webkitRequestFullscreen) {
-    container.webkitRequestFullscreen();
-  }
+function render() {
+	var delta = clock.getDelta() * 60;
+	if ( isMouseDown === true ) {
+		var cube = room.children[ 0 ];
+		room.remove( cube );
+		cube.position.set( 0, 0, - 0.75 );
+		cube.position.applyQuaternion( camera.quaternion );
+		cube.userData.velocity.x = ( Math.random() - 0.5 ) * 0.02 * delta;
+		cube.userData.velocity.y = ( Math.random() - 0.5 ) * 0.02 * delta;
+		cube.userData.velocity.z = ( Math.random() * 0.01 - 0.05 ) * delta;
+		cube.userData.velocity.applyQuaternion( camera.quaternion );
+		room.add( cube );
+	}
+	// find intersections
+	raycaster.setFromCamera( { x: 0, y: 0 }, camera );
+	var intersects = raycaster.intersectObjects( room.children );
+	if ( intersects.length > 0 ) {
+		if ( INTERSECTED != intersects[ 0 ].object ) {
+			if ( INTERSECTED ) INTERSECTED.material.emissive.setHex( INTERSECTED.currentHex );
+			INTERSECTED = intersects[ 0 ].object;
+			INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
+			INTERSECTED.material.emissive.setHex( 0xff0000 );
+		}
+	} else {
+		if ( INTERSECTED ) INTERSECTED.material.emissive.setHex( INTERSECTED.currentHex );
+		INTERSECTED = undefined;
+	}
+	// Keep cubes inside room
+	for ( var i = 0; i < room.children.length; i ++ ) {
+		var cube = room.children[ i ];
+		cube.userData.velocity.multiplyScalar( 1 - ( 0.001 * delta ) );
+		cube.position.add( cube.userData.velocity );
+		if ( cube.position.x < - 3 || cube.position.x > 3 ) {
+			cube.position.x = THREE.Math.clamp( cube.position.x, - 3, 3 );
+			cube.userData.velocity.x = - cube.userData.velocity.x;
+		}
+		if ( cube.position.y < - 3 || cube.position.y > 3 ) {
+			cube.position.y = THREE.Math.clamp( cube.position.y, - 3, 3 );
+			cube.userData.velocity.y = - cube.userData.velocity.y;
+		}
+		if ( cube.position.z < - 3 || cube.position.z > 3 ) {
+			cube.position.z = THREE.Math.clamp( cube.position.z, - 3, 3 );
+			cube.userData.velocity.z = - cube.userData.velocity.z;
+		}
+		cube.rotation.x += cube.userData.velocity.x * 2 * delta;
+		cube.rotation.y += cube.userData.velocity.y * 2 * delta;
+		cube.rotation.z += cube.userData.velocity.z * 2 * delta;
+	}
+	renderer.render( scene, camera );
 }
