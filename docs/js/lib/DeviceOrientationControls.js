@@ -58,7 +58,7 @@ THREE.DeviceOrientationControls = function(object) {
   this.freeze = true;
 
   this.movementSpeed = 1.0;
-  this.rollSpeed = 0.5;
+  this.rollSpeed = 1.0;
   this.autoAlign = true;
   this.autoForward = false;
 
