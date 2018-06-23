@@ -16,7 +16,7 @@ THREE.StereoEffect = function ( renderer ) {
 	/*
 	 * Distance to the non-parallax or projection plane
 	 */
-	this.focalLength = 15;
+	this.focalLength = 30;
 
 	// internals
 
@@ -69,7 +69,7 @@ THREE.StereoEffect = function ( renderer ) {
 		_innerFactor = ( _halfFocalWidth + this.separation / 2.0 ) / ( _halfFocalWidth * 2.0 );
 		_outerFactor = 1.0 - _innerFactor;
 
-		_outer = _halfFocalWidth * 2.0 * _ndfl * _outerFactor;
+		_outer = _halfFocalWidth * 4.0 * _ndfl * _outerFactor;
 		_inner = _halfFocalWidth * 2.0 * _ndfl * _innerFactor;
 
 		// left
