@@ -49,14 +49,18 @@ function init() {
 	app.init();
 }
 
+var width = 0;
+var height = 0;
+
 function resize() {
-	var width = container.offsetWidth;
-	var height = container.offsetHeight;
+	width = container.offsetWidth;
+	height = container.offsetHeight;
 
 	camera.aspect = width / height;
 	camera.updateProjectionMatrix();
 
 	renderer.setSize(width, height);
+
 	effect.setSize(width, height);
 }
 
@@ -71,7 +75,6 @@ function update(dt) {
 
 function render(dt) {
 	app.render(dt);
-	requestAnimationFrame(render);
 	effect.render(scene, camera);
 }
 

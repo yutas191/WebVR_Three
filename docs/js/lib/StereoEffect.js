@@ -52,7 +52,7 @@ THREE.StereoEffect = function ( renderer ) {
 		scene.updateMatrixWorld();
 
 		if ( camera.parent === undefined ) camera.updateMatrixWorld();
-	
+
 		camera.matrixWorld.decompose( _position, _quaternion, _scale );
 
 		// Stereo frustum calculation
@@ -67,13 +67,12 @@ THREE.StereoEffect = function ( renderer ) {
 		_top = _halfFocalHeight * _ndfl;
 		_bottom = -_top;
 		_innerFactor = ( _halfFocalWidth + this.separation / 2.0 ) / ( _halfFocalWidth * 2.0 );
-		_outerFactor = 1.2 - _innerFactor;
+		_outerFactor = 1.1 - _innerFactor;
 
 		_outer = _halfFocalWidth * 2.0 * _ndfl * _outerFactor;
 		_inner = _halfFocalWidth * 2.0 * _ndfl * _innerFactor;
 
 		// left
-
 		_cameraL.projectionMatrix.makeFrustum(
 			-_outer,
 			_inner,
@@ -82,10 +81,6 @@ THREE.StereoEffect = function ( renderer ) {
 			camera.near,
 			camera.far
 		);
-
-		_cameraL.position.copy( _position );
-		_cameraL.quaternion.copy( _quaternion );
-		_cameraL.translateX( - this.separation / 2.0 );
 
 		// right
 
@@ -98,11 +93,13 @@ THREE.StereoEffect = function ( renderer ) {
 			camera.far
 		);
 
+		_cameraL.position.copy( _position );
+		_cameraL.quaternion.copy( _quaternion );
+		_cameraL.translateX( - this.separation / 2.0 );
+
 		_cameraR.position.copy( _position );
 		_cameraR.quaternion.copy( _quaternion );
 		_cameraR.translateX( this.separation / 2.0 );
-
-		//
 
 		renderer.setViewport( 0, 0, _width * 2, _height );
 		renderer.clear();
